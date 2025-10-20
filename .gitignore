@@ -208,6 +208,9 @@ data/
 *.pkl
 *.pyc
 
+# secrets google cloud
+conf/**/*.json
+
 # idea
 .idea
 
