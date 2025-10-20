@@ -1,0 +1,160 @@
+import os
+import io
+import pandas as pd
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+
+
+class GPCUtils:
+    def __init__(
+        self,
+        folder_id: str,
+        client_path: str = None,
+        token_path: str = None,
+        scopes: list = None,
+        quota_project: str | None = None,
+    ):
+        """
+        folder_id: ID de la carpeta (incluye Shared Drives)
+        client_path/token_path: rutas a client_secret.json y tokens.json
+        scopes: lista de scopes para Drive
+        quota_project: opcional, proyecto de cuota
+        """
+        base_conf = os.path.abspath(os.path.join(os.path.dirname(os.getcwd()), 'conf'))
+        self.CLIENT_PATH = client_path or os.path.join(base_conf, 'client_secret.json')
+        self.TOKEN_PATH  = token_path  or os.path.join(base_conf, 'tokens.json')
+
+        # Para listar en Shared Drives y subir archivos:
+        # - drive.metadata.readonly: listar metadatos
+        # - drive.file: subir/editar archivos creados por tu app
+        self.SCOPES = scopes or [
+            'https://www.googleapis.com/auth/drive.metadata.readonly',
+            'https://www.googleapis.com/auth/drive.file',
+        ]
+        self.folder_id = folder_id
+        self.quota_project = quota_project
+        self.service = None
+
+    def auth(self):
+        creds = None
+        if os.path.exists(self.TOKEN_PATH):
+            creds = Credentials.from_authorized_user_file(self.TOKEN_PATH, self.SCOPES)
+
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(self.CLIENT_PATH, self.SCOPES)
+                creds = flow.run_local_server(port=0)
+
+            # (opcional) cuota project
+            if self.quota_project:
+                try:
+                    creds = creds.with_quota_project(self.quota_project)
+                except Exception:
+                    pass
+
+            with open(self.TOKEN_PATH, 'w') as token:
+                token.write(creds.to_json())
+
+        self.service = build('drive', 'v3', credentials=creds)
+        
+        return self.service
+
+    def list_files(self):
+        """
+        Lista TODOS los archivos directos dentro de self.folder_id (soporta Shared Drives).
+        Devuelve lista de dicts con id, name, mimeType y webViewLink.
+        """
+        if self.service is None:
+            self.auth()
+
+        query = f"'{self.folder_id}' in parents and trashed = false"
+        fields = "nextPageToken, files(id,name,mimeType,webViewLink)"
+        files = []
+        page_token = None
+
+        while True:
+            resp = self.service.files().list(
+                q=query,
+                fields=fields,
+                includeItemsFromAllDrives=True,
+                supportsAllDrives=True,
+                pageToken=page_token
+            ).execute()
+
+            items = resp.get('files', [])
+            files.extend(items)
+            page_token = resp.get('nextPageToken')
+            if not page_token:
+                break
+
+        # salida cómoda por consola
+        if not files:
+            print("📂 La carpeta está vacía o no tienes acceso.")
+        else:
+            print(f"✅ {len(files)} archivo(s) encontrados:")
+            for f in files:
+                print(f" - {f['name']} ({f['id']})")
+
+        return files
+
+    def upload_dataframe_xlsx(self, df: pd.DataFrame, drive_filename: str, replace_if_exists: bool = True):
+        """
+        Sube un DataFrame como .xlsx a self.folder_id (sin archivo local).
+        Si replace_if_exists=True, actualiza el archivo si existe uno con el mismo nombre.
+        """
+        if self.service is None:
+            self.auth()
+
+        # 1) Excel en memoria
+        buf = io.BytesIO()
+        with pd.ExcelWriter(buf, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='data')
+        buf.seek(0)
+
+        # 2) Buscar si existe archivo con ese nombre en la carpeta (para reemplazar)
+        existing_id = None
+        if replace_if_exists:
+            safe_name = drive_filename.replace("'", "\\'")
+            q = f"name = '{safe_name}' and '{self.folder_id}' in parents and trashed = false"
+            search = self.service.files().list(
+                q=q,
+                fields="files(id,name)",
+                includeItemsFromAllDrives=True,
+                supportsAllDrives=True
+            ).execute()
+            items = search.get('files', [])
+            if items:
+                existing_id = items[0]['id']
+
+        media = MediaIoBaseUpload(
+            buf,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            resumable=True
+        )
+
+        if existing_id:
+            # actualizar
+            updated = self.service.files().update(
+                fileId=existing_id,
+                media_body=media,
+                fields="id,name,webViewLink",
+                supportsAllDrives=True
+            ).execute()
+            print(f"🔁 Actualizado: {updated['name']} → {updated['webViewLink']}")
+            return updated
+        else:
+            # crear
+            metadata = {'name': drive_filename, 'parents': [self.folder_id]}
+            created = self.service.files().create(
+                body=metadata,
+                media_body=media,
+                fields="id,name,webViewLink",
+                supportsAllDrives=True
+            ).execute()
+            print(f"☁️ Subido: {created['name']} → {created['webViewLink']}")
+            return created
