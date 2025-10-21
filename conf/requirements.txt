@@ -20,4 +20,6 @@ sacremoses==0.1.1
 pyairtable
 openpyxl==3.1.5
 google_api_python_client==2.185.0
+google-auth
+google-auth-oauthlib
 xlsxwriter==3.2.9
