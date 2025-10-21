@@ -1,6 +1,9 @@
 import os
 import io
 import pandas as pd
+
+from pathlib import Path
+from typing import Optional, List
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from google.oauth2.credentials import Credentials
@@ -11,11 +14,11 @@ from google.auth.transport.requests import Request
 class GPCUtils:
     def __init__(
         self,
-        folder_id: str,
-        client_path: str = None,
-        token_path: str = None,
-        scopes: list = None,
-        quota_project: str | None = None,
+        folder_id: Optional[str] = None,
+        client_path: Optional[str] = None,
+        token_path: Optional[str] = None,
+        scopes: Optional[List[str]] = None,
+        quota_project: Optional[str] = None
     ):
         """
         folder_id: ID de la carpeta (incluye Shared Drives)
@@ -23,9 +26,23 @@ class GPCUtils:
         scopes: lista de scopes para Drive
         quota_project: opcional, proyecto de cuota
         """
-        base_conf = os.path.abspath(os.path.join(os.path.dirname(os.getcwd()), 'conf'))
-        self.CLIENT_PATH = client_path or os.path.join(base_conf, 'client_secret.json')
-        self.TOKEN_PATH  = token_path  or os.path.join(base_conf, 'tokens.json')
+
+        workspace = os.getenv("GITHUB_WORKSPACE")
+        if workspace:
+            conf_dir = Path(workspace) / "conf"
+        else:
+            # project_root/ conf  (two levels up from CWD to be safer)
+            conf_dir = Path(
+                os.path.abspath(
+                    os.path.join(
+                        os.getcwd(), "..", "..", "conf")
+                )
+            )
+        conf_dir.mkdir(parents=True, exist_ok=True)
+
+        # 2) File locations (overridable)
+        self.CLIENT_PATH = Path(client_path) if client_path else conf_dir / "client_secret.json"
+        self.TOKEN_PATH = Path(token_path) if token_path else conf_dir / "tokens.json"
 
         # Para listar en Shared Drives y subir archivos:
         # - drive.metadata.readonly: listar metadatos
@@ -54,7 +71,8 @@ class GPCUtils:
             if self.quota_project:
                 try:
                     creds = creds.with_quota_project(self.quota_project)
-                except Exception:
+                except Exception as e:
+                    print(e)
                     pass
 
             with open(self.TOKEN_PATH, 'w') as token:
