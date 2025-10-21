@@ -11,7 +11,6 @@ jobs:
     timeout-minutes: 15
 
     env:
-      GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
       GCP_QUOTA_PROJECT: ${{ secrets.GCP_QUOTA_PROJECT }}
       AIRTABLE_API: ${{ secrets.AIRTABLE_API }}
       BASE_ID: ${{ secrets.BASE_ID }}
