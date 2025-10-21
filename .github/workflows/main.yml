@@ -41,5 +41,5 @@ jobs:
 
       - name: Run upload script
         run: |
-          python scripts/upload_dataframe.py
+          python src/scripts/upload_dataframe.py
   
