@@ -16,7 +16,7 @@ jobs:
       TABLE_NAME: ${{ secrets.TABLE_NAME }}
       FOLDER_ID: ${{ secrets.FOLDER_ID }}
       GCP_QUOTA_PROJECT: ${{ secrets.GCP_QUOTA_PROJECT }}
-      TOKENS_JSON_B64: ${{ secrets.TOKENS_JSON_B64 }}
+      TOKEN_JSON_B64: ${{ secrets.TOKEN_JSON_B64 }}              # ← usa SIEMPRE este nombre
       CLIENT_SECRET_JSON_B64: ${{ secrets.CLIENT_SECRET_JSON_B64 }}
 
     steps:
@@ -27,6 +27,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Add src to PYTHONPATH
         run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)/src" >> $GITHUB_ENV
@@ -40,15 +48,18 @@ jobs:
             pip install -r conf/requirements.txt
           fi
 
+      - name: Check TOKEN_JSON_B64 present
+        run: |
+          if [ -z "${TOKEN_JSON_B64:-}" ]; then
+            echo "TOKEN_JSON_B64 vacío o no definido. Revisa Settings → Secrets."
+            exit 1
+          fi
 
       - name: Restore OAuth files
-        env:
-          TOKENS_JSON_B64: ${{ secrets.TOKENS_JSON_B64 }}
-          CLIENT_SECRET_JSON_B64: ${{ secrets.CLIENT_SECRET_JSON_B64 }}
         run: |
           set -eu
           mkdir -p conf
-          printf "%s" "$TOKENS_JSON_B64" | base64 -d > conf/tokens.json
+          printf "%s" "$TOKEN_JSON_B64" | base64 -d > conf/tokens.json   # ← nombre correcto
           if [ -n "${CLIENT_SECRET_JSON_B64:-}" ]; then
             printf "%s" "$CLIENT_SECRET_JSON_B64" | base64 -d > conf/client_secret.json
           fi
