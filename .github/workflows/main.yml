@@ -67,3 +67,16 @@ jobs:
 
       - name: Run upload script
         run: python -m src.scripts.upload_dataframe
+
+
+      - name: Email Sender
+        # You may pin to the exact commit or the version.
+        # uses: wesdevteam/maileraction@29267ae03360b8c8fb932042d919bb451bb018cc
+        uses: wesdevteam/maileraction@v1.2.3
+        with:
+          # Recipient email address
+          to: karim@1586.coffee, darwin@1586.coffee
+          # Email subject
+          subject: Weekly airtable to drive upload
+          # Plain text message
+          text: airtable_communityt_data.xlsx → https://docs.google.com/spreadsheets/d/1BSRbj85_UY-zHSxeARyi0Q3NKcshubDD/edit?usp=drivesdk&ouid=100348196114828262291&rtpof=true&sd=true
