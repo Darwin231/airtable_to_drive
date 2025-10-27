@@ -59,55 +59,31 @@ class GPCUtils:
         self.service = None
 
     def auth(self):
-        """
-        Autenticación con prioridad:
-        1. CLOUD_SECRET (Service Account en base64 desde env vars)
-        2. tokens.json (flujo OAuth local)
-        """
-
-        # Intentar primero autenticación por Service Account GH actrions
-        cloud_secret_b64 = os.getenv("CLOUD_SECRET")
-        if cloud_secret_b64:
-            try:
-                sa_info = json.loads(base64.b64decode(cloud_secret_b64))
-                creds = service_account.Credentials.from_service_account_info(
-                    sa_info, scopes=self.SCOPES
-                )
-                if self.quota_project:
-                    try:
-                        creds = creds.with_quota_project(self.quota_project)
-                    except Exception as e:
-                        print(f"⚠️  No se pudo aplicar quota project: {e}")
-                self.service = build("drive", "v3", credentials=creds)
-                print("✅ Autenticado mediante Service Account (CLOUD_SECRET)")
-                return self.service
-            except Exception as e:
-                print(f"⚠️  Error al usar CLOUD_SECRET: {e}")
-
-        # tokens.json (para ejecución local)
         creds = None
-        if os.path.exists(self.TOKEN_PATH):
-            creds = Credentials.from_authorized_user_file(self.TOKEN_PATH, self.SCOPES)
+
+        # OAuth tokens desde conf/tokens.json (restaurado por el workflow)
+        if self.TOKEN_PATH.exists():
+            creds = Credentials.from_authorized_user_file(str(self.TOKEN_PATH), self.SCOPES)
 
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                flow = InstalledAppFlow.from_client_secrets_file(self.CLIENT_PATH, self.SCOPES)
+                # Solo funcionará localmente (no en Actions)
+                flow = InstalledAppFlow.from_client_secrets_file(str(self.CLIENT_PATH), self.SCOPES)
                 creds = flow.run_local_server(port=0)
 
             if self.quota_project:
                 try:
                     creds = creds.with_quota_project(self.quota_project)
                 except Exception as e:
-                    print(e)
-                    pass
+                    print(f"⚠️ No se pudo aplicar quota project: {e}")
 
+            self.TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
             with open(self.TOKEN_PATH, 'w') as token:
                 token.write(creds.to_json())
 
         self.service = build('drive', 'v3', credentials=creds)
-        print("✅ Autenticado mediante OAuth local")
         return self.service
 
     def list_files(self):
