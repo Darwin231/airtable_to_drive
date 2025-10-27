@@ -9,6 +9,8 @@ from googleapiclient.http import MediaIoBaseUpload
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from google.oauth2 import service_account
+import json, base64
 
 
 class GPCUtils:
@@ -44,6 +46,7 @@ class GPCUtils:
         self.CLIENT_PATH = Path(client_path) if client_path else conf_dir / "client_secret.json"
         self.TOKEN_PATH = Path(token_path) if token_path else conf_dir / "tokens.json"
 
+
         # Para listar en Shared Drives y subir archivos:
         # - drive.metadata.readonly: listar metadatos
         # - drive.file: subir/editar archivos creados por tu app
@@ -56,6 +59,32 @@ class GPCUtils:
         self.service = None
 
     def auth(self):
+        """
+        Autenticación con prioridad:
+        1. CLOUD_SECRET (Service Account en base64 desde env vars)
+        2. tokens.json (flujo OAuth local)
+        """
+
+        # Intentar primero autenticación por Service Account GH actrions
+        cloud_secret_b64 = os.getenv("CLOUD_SECRET")
+        if cloud_secret_b64:
+            try:
+                sa_info = json.loads(base64.b64decode(cloud_secret_b64))
+                creds = service_account.Credentials.from_service_account_info(
+                    sa_info, scopes=self.SCOPES
+                )
+                if self.quota_project:
+                    try:
+                        creds = creds.with_quota_project(self.quota_project)
+                    except Exception as e:
+                        print(f"⚠️  No se pudo aplicar quota project: {e}")
+                self.service = build("drive", "v3", credentials=creds)
+                print("✅ Autenticado mediante Service Account (CLOUD_SECRET)")
+                return self.service
+            except Exception as e:
+                print(f"⚠️  Error al usar CLOUD_SECRET: {e}")
+
+        # tokens.json (para ejecución local)
         creds = None
         if os.path.exists(self.TOKEN_PATH):
             creds = Credentials.from_authorized_user_file(self.TOKEN_PATH, self.SCOPES)
@@ -67,7 +96,6 @@ class GPCUtils:
                 flow = InstalledAppFlow.from_client_secrets_file(self.CLIENT_PATH, self.SCOPES)
                 creds = flow.run_local_server(port=0)
 
-            # (opcional) cuota project
             if self.quota_project:
                 try:
                     creds = creds.with_quota_project(self.quota_project)
@@ -79,7 +107,7 @@ class GPCUtils:
                 token.write(creds.to_json())
 
         self.service = build('drive', 'v3', credentials=creds)
-        
+        print("✅ Autenticado mediante OAuth local")
         return self.service
 
     def list_files(self):
