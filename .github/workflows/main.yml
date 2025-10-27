@@ -70,8 +70,6 @@ jobs:
 
 
       - name: Email Sender
-        # You may pin to the exact commit or the version.
-        # uses: wesdevteam/maileraction@29267ae03360b8c8fb932042d919bb451bb018cc
         uses: wesdevteam/maileraction@v1.2.3
         env:
           MAIL_HOST: ${{ secrets.MAIL_HOST }}
@@ -82,9 +80,19 @@ jobs:
           MAIL_NAME: ${{ secrets.MAIL_NAME }}
           MAIL_URL: ${{ secrets.MAIL_URL }}
         with:
-          # Recipient email address
-          to: karim@1586.coffee, darwin@1586.coffee
-          # Email subject
-          subject: Weekly airtable to drive upload
-          # Plain text message
-          text: airtable_communityt_data.xlsx →  ${{ env.MAIL_URL }}
+          # Destinatarios (puedes separarlos por coma o salto de línea)
+          to: |
+            karim@1586.coffee
+            darwin@1586.coffee
+
+          # Asunto
+          subject: Weekly Airtable → Drive upload
+
+          # Cuerpo del mensaje (usa la variable del entorno correctamente)
+          text: |
+            ✅ El archivo airtable_communityt_data.xlsx fue actualizado correctamente.
+
+            Enlace: ${{ env.MAIL_URL }}
+
+            --
+            Este correo fue enviado automáticamente por GitHub Actions.
