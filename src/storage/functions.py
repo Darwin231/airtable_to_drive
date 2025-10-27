@@ -9,6 +9,8 @@ from googleapiclient.http import MediaIoBaseUpload
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from google.oauth2 import service_account
+import json, base64
 
 
 class GPCUtils:
@@ -44,6 +46,7 @@ class GPCUtils:
         self.CLIENT_PATH = Path(client_path) if client_path else conf_dir / "client_secret.json"
         self.TOKEN_PATH = Path(token_path) if token_path else conf_dir / "tokens.json"
 
+
         # Para listar en Shared Drives y subir archivos:
         # - drive.metadata.readonly: listar metadatos
         # - drive.file: subir/editar archivos creados por tu app
@@ -57,29 +60,30 @@ class GPCUtils:
 
     def auth(self):
         creds = None
-        if os.path.exists(self.TOKEN_PATH):
-            creds = Credentials.from_authorized_user_file(self.TOKEN_PATH, self.SCOPES)
+
+        # OAuth tokens desde conf/tokens.json (restaurado por el workflow)
+        if self.TOKEN_PATH.exists():
+            creds = Credentials.from_authorized_user_file(str(self.TOKEN_PATH), self.SCOPES)
 
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                flow = InstalledAppFlow.from_client_secrets_file(self.CLIENT_PATH, self.SCOPES)
+                # Solo funcionará localmente (no en Actions)
+                flow = InstalledAppFlow.from_client_secrets_file(str(self.CLIENT_PATH), self.SCOPES)
                 creds = flow.run_local_server(port=0)
 
-            # (opcional) cuota project
             if self.quota_project:
                 try:
                     creds = creds.with_quota_project(self.quota_project)
                 except Exception as e:
-                    print(e)
-                    pass
+                    print(f"⚠️ No se pudo aplicar quota project: {e}")
 
+            self.TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
             with open(self.TOKEN_PATH, 'w') as token:
                 token.write(creds.to_json())
 
         self.service = build('drive', 'v3', credentials=creds)
-        
         return self.service
 
     def list_files(self):
