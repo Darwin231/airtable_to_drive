@@ -40,11 +40,7 @@ The process runs daily via **GitHub Actions**, authenticating securely with a **
 | `KHAWA_ROASTERS_TABLE_NAME` | Roasters table name | ✅ |
 | `KHAWA_CAFETERIAS_TABLE_NAME` | Cafeterías table name | ✅ |
 
-Optional:
-- `GOOGLE_DELEGATE_USER`: (only if using domain-wide delegation)
-- `GOOGLE_APPLICATION_CREDENTIALS`: local path to service account JSON (set automatically in Actions)
 
----
 
 ## 🔐 Secrets for GitHub Actions
 
