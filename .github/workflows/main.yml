@@ -73,7 +73,3 @@ jobs:
 
       - name: Run upload script
         run: python -m src.scripts.upload_dataframe
-
-
-            --
-            Este correo fue enviado automáticamente por GitHub Actions.
