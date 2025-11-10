@@ -9,8 +9,6 @@ from googleapiclient.http import MediaIoBaseUpload
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from google.oauth2 import service_account
-import json, base64
 
 
 class GPCUtils:
@@ -167,7 +165,7 @@ class GPCUtils:
                 fields="id,name,webViewLink",
                 supportsAllDrives=True
             ).execute()
-            print(f"🔁 Actualizado: {updated['name']} → {updated['webViewLink']}")
+            print(f"🔁 Actualizado: {updated['name']}")
             return updated
         else:
             # crear

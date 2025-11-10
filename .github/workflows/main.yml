@@ -15,8 +15,14 @@ jobs:
       BASE_ID: ${{ secrets.BASE_ID }}
       TABLE_NAME: ${{ secrets.TABLE_NAME }}
       FOLDER_ID: ${{ secrets.FOLDER_ID }}
+      KHAWA_BASE_ID: ${{ secrets.KHAWA_BASE_ID'}}
+      KHAWA_PRODUCERS_TABLE_NAME: ${{ secrets.KHAWA_PRODUCERS_TABLE_NAME }}
+      KHAWA_BENEFICIO_TABLE_NAME: ${{ secrets.KHAWA_BENEFICIO_TABLE_NAME }}
+      KHAWA_CAFE_TABLE_NAME: ${{ secrets.KHAWA_CAFE_TABLE_NAME }}
+      KHAWA_ROASTERS_TABLE_NAME: ${{ secrets.KHAWA_ROASTERS_TABLE_NAME }}
+      KHAWA_CAFETERIAS_TABLE_NAME: ${{ secrets.KHAWA_CAFETERIAS_TABLE_NAME }}
       GCP_QUOTA_PROJECT: ${{ secrets.GCP_QUOTA_PROJECT }}
-      TOKEN_JSON_B64: ${{ secrets.TOKEN_JSON_B64 }}              # ← usa SIEMPRE este nombre
+      TOKEN_JSON_B64: ${{ secrets.TOKEN_JSON_B64 }}
       CLIENT_SECRET_JSON_B64: ${{ secrets.CLIENT_SECRET_JSON_B64 }}
 
     steps:
@@ -67,3 +73,7 @@ jobs:
 
       - name: Run upload script
         run: python -m src.scripts.upload_dataframe
+
+
+            --
+            Este correo fue enviado automáticamente por GitHub Actions.
